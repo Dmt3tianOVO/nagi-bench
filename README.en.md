@@ -33,7 +33,7 @@ One-shot LLM eval cases by NAGI STUDIO: same prompt, different model x harness x
 | Kimi K2.6 | Moonshot AI | Kimi Code (local) | Thinking | 02 |
 | MiniMax M3 | MiniMax | MiniMax Code Web | Thinking | 01 |
 
-Pending: Mistral Medium 3.5 · GLM-5.1 · Qwen3.7-Max (PRs welcome)
+Pending: Claude Opus 4.8 · Mistral Medium 3.5 · GLM-5.1 · Qwen3.7-Max (PRs welcome)
 
 > This table is a hand-maintained snapshot; the site's registry section is generated live from `models/*.json` and is authoritative.
 

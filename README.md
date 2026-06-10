@@ -33,7 +33,7 @@ NAGI STUDIO 的 LLM 测评案例集：同一段提示词，不同「模型 × Ha
 | Kimi K2.6 | Moonshot AI | Kimi Code（本地） | Thinking | 02 |
 | MiniMax M3 | MiniMax | MiniMax Code 网页版 | Thinking | 01 |
 
-待测：Mistral Medium 3.5 · GLM-5.1 · Qwen3.7-Max（欢迎 PR 补充）
+待测：Claude Opus 4.8 · Mistral Medium 3.5 · GLM-5.1 · Qwen3.7-Max（欢迎 PR 补充）
 
 > 此表为人工维护的快照；站点上的「模型阵容」表由 `models/*.json` 实时生成，以站点为准。
 
