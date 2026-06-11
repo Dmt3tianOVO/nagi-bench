@@ -26,14 +26,14 @@ NAGI STUDIO 的 LLM 测评案例集：同一段提示词，不同「模型 × Ha
 
 | 模型 | 厂商 | 运行环境（Harness）× 思考配额 | 产出 |
 |---|---|---|---|
-| Claude Fable 5 | Anthropic | Claude Web App · Max<br>Claude Code · Max | 04 |
+| Claude Fable 5 | Anthropic | Claude Web App · Max<br>Claude Code · Max<br>Cursor · High | 06 |
 | Claude Opus 4.8 | Anthropic | Claude Code · Max | 02 |
 | GPT-5.5 Pro | OpenAI | ChatGPT Web · Extended Pro | 02 |
 | GPT-5.5 | OpenAI | Codex CLI · xhigh | 02 |
 | Gemini 3.1 Pro | Google | AntiGravity · High<br>Google AI Studio · High | 03 |
 | Gemini 3.5 Flash | Google | AntiGravity · High<br>Google AI Studio · High | 03 |
 | Grok Build | xAI | Grok Build TUI · Max | 02 |
-| Composer 2.5 | Cursor | Cursor · Max<br>Grok Build TUI · Default | 03 |
+| Composer 2.5 | Cursor | Cursor · Max<br>Cursor · Fast<br>Grok Build TUI · Default | 05 |
 | DeepSeek-V4-Pro | DeepSeek | Claude Code · Max | 02 |
 | Doubao Seed 2.0 Pro | ByteDance | Doubao Web · Pro Mode | 01 |
 | Doubao Seed 2.0 Mini | ByteDance | Doubao Web · Fast Mode | 01 |
