@@ -16,9 +16,11 @@ One-shot LLM eval cases by NAGI STUDIO: same prompt, different model x harness x
 
 ## Models vs harnesses
 
+> **Model + Harness = Agent** — a model is just weights; wrap it in a runtime and it becomes an agent that can actually do the work. That agent is the unit this bench evaluates.
+
 - **Model**: the weights and inference engine itself — GPT-5.5, Gemini 3.1 Pro, Claude Fable 5.
 - **Harness**: the product/scaffolding wrapping the model — Codex CLI, Cursor, AntiGravity, the Claude web app. It controls tool calls, system prompts, context management and continuation strategy, and often shapes the outcome as much as the model does.
-- The unit of evaluation here is therefore the **combination**: the same model under a different harness or effort level is a separate entry (GPT-5.5 Pro and GPT-5.5 running in Codex CLI at xhigh are two records of the same model family). Effort defaults to max; new effort variants of an existing combination can be added later.
+- The unit of evaluation here is therefore an **Agent**: the same model under a different harness is a different agent and a separate entry (GPT-5.5 Pro and GPT-5.5 running in Codex CLI at xhigh are two agents from the same model family). Effort is a parameter of that agent, defaulting to max.
 
 ## Registry
 
