@@ -48,7 +48,7 @@ NAGI STUDIO 的 LLM 测评案例集：同一段提示词，不同「模型 × Ha
 ## Arena 盲评与社区榜单
 
 - 每个案例默认进入 **Arena 模式**：随机抽两份产出匿名对战（A / B / 都不好），投完票才揭晓身份；右上角可切到 **全部查看**（按模型分组浏览，同一模型多个 Harness 可单看或并排对比）。
-- 在两个案例各投满 03 票后解锁**社区榜单**：按 Bradley-Terry 评分排名（LMSYS Chatbot Arena 同思路），「都不好」单独计入双败。
+- 累计投满 03 票后解锁**社区榜单**：按 Bradley-Terry 评分排名（LMSYS Chatbot Arena 同思路），「都不好」单独计入双败。
 - 投票默认存浏览器本地；部署 `worker/`（Cloudflare Worker + D1 + Turnstile 防刷，免费档即可）后自动升级为全站众包数据，步骤见 [worker/README.md](./worker/README.md)。
 
 ## 结构 / Structure
