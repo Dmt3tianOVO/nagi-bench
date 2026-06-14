@@ -669,8 +669,8 @@ class GL{
     this.cv=cv;this.gl=cv.getContext('webgl',{alpha:false,antialias:false,alphaPremultiplied:false});
     if(!this.gl){alert('WebGL不可用');return}
     const g=this.gl;g.getExtension('OES_element_index_uint');
-    this.resize();this.initShaders();this.initState();
     this.fogN=(RD-1)*CS;this.fogF=RD*CS;
+    this.resize();this.initShaders();this.initState();
   }
   resize(){
     const dpr=Math.min(devicePixelRatio,1.5);
@@ -762,7 +762,7 @@ class Game{
   }
   setupInput(){
     const cv=this.cv;
-    cv.addEventListener('click',()=>{
+    const enter=()=>{
       if(!document.pointerLockElement){
         cv.requestPointerLock();
         document.getElementById('loading').classList.add('hiding');
@@ -772,7 +772,9 @@ class Game{
         document.getElementById('info').classList.remove('hidden');
         if(!this.running)this.start();
       }else{this.breakBlock()}
-    });
+    };
+    cv.addEventListener('click',enter);
+    document.getElementById('loading').addEventListener('click',enter);
     document.addEventListener('mousemove',e=>{
       if(!document.pointerLockElement)return;
       this.cam.yaw+=e.movementX*.002;this.cam.pitch-=e.movementY*.002;

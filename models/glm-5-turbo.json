@@ -10,16 +10,16 @@
       {
         "file": "mythos-craft.html",
         "note": {
-          "zh": "在 ZCode 中以 GLM-5 Turbo（Thinking 思考配额）一次生成；本页为未经修改的原始 HTML 产出。",
-          "en": "Generated in one shot by GLM-5 Turbo (Thinking effort) inside ZCode; unmodified original HTML output."
+          "zh": "在 ZCode 中以 GLM-5 Turbo（Thinking 思考配额）一次生成。原始 HTML 因脚本括号错误、缺少 Game 初始化和缺少收尾标签而无法进入；Codex 仅修复这些启动接线问题，未改动玩法或视觉设计。",
+          "en": "Generated in one shot by GLM-5 Turbo (Thinking effort) inside ZCode. The original HTML could not enter the game because of script-brace errors, missing Game initialization, and missing closing tags; Codex only fixed those startup wiring issues, without changing gameplay or visual design."
         },
         "contributor": "Nagi-ovo"
       },
       {
         "file": "mythos-craft-2.html",
         "note": {
-          "zh": "在 ZCode 中以 GLM-5 Turbo（Thinking 思考配额）一次生成的第二个 HTML 版本；本页为未经修改的原始 HTML 产出。",
-          "en": "Second HTML variant generated in one shot by GLM-5 Turbo (Thinking effort) inside ZCode; unmodified original HTML output."
+          "zh": "在 ZCode 中以 GLM-5 Turbo（Thinking 思考配额）一次生成的第二个 HTML 版本。原始 HTML 因雾效参数在 shader 编译后才初始化、且点击事件被 loading 覆盖层挡住而无法进入；Codex 仅修复这些启动/加载问题，未改动玩法或视觉设计。",
+          "en": "Second HTML variant generated in one shot by GLM-5 Turbo (Thinking effort) inside ZCode. The original HTML could not enter because fog parameters were initialized after shader compilation and the loading overlay blocked the click handler; Codex only fixed those startup/loading issues, without changing gameplay or visual design."
         },
         "contributor": "Nagi-ovo"
       }

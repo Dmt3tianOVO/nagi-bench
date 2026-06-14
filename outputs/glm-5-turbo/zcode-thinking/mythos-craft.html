@@ -51,7 +51,7 @@ canvas{display:block}
 
 // ============ PERLIN NOISE ============
 const PerlinNoise=(()=>{const p=[];for(let i=0;i<256;i++)p[i]=i;for(let i=255;i>0;i--){const j=Math.floor(Math.random()*(i+1));[p[i],p[j]]=[p[j],p[i]]}const perm=new Array(512);for(let i=0;i<512;i++)perm[i]=p[i&255];const fade=t=>t*t*t*(t*(t*6-15)+10);const lerp=(a,b,t)=>a+t*(b-a);const grad=(hash,x,y,z)=>{const h=hash&15;const u=h<8?x:y;const v=h<4?y:(h===12||h===14?x:z);return((h&1)===0?u:-u)+((h&2)===0?v:-v)};
-return{noise(x,y,z){z=z||0;const X=Math.floor(x)&255,Y=Math.floor(y)&255,Z=Math.floor(z)&255;x-=Math.floor(x);y-=Math.floor(y);z-=Math.floor(z);const u=fade(x),v=fade(y),w=fade(z);const A=perm[X]+Y,AA=perm[A]+Z,AB=perm[A+1]+Z,B=perm[X+1]+Y,BA=perm[B]+Z,BB=perm[B+1]+Z;return lerp(lerp(lerp(grad(perm[AA],x,y,z),grad(perm[BA],x-1,y,z),u),lerp(grad(perm[AB],x,y-1,z),grad(perm[BB],x-1,y-1,z),u),v),lerp(lerp(grad(perm[AA+1],x,y,z-1),grad(perm[BA+1],x-1,y,z-1),u),lerp(grad(perm[AB+1],x,y-1,z-1),grad(perm[BB+1],x-1,y-1,z-1),u),v),w)},fbm(x,y,z,octaves,lacunarity,gain){let sum=0,amp=1,freq=1,max=0;for(let i=0;i<octaves;i++){sum+=amp*this.noise(x*freq,y*freq,z*freq);max+=amp;amp*=gain;freq*=lacunarity}return sum/max}}}})();
+return{noise(x,y,z){z=z||0;const X=Math.floor(x)&255,Y=Math.floor(y)&255,Z=Math.floor(z)&255;x-=Math.floor(x);y-=Math.floor(y);z-=Math.floor(z);const u=fade(x),v=fade(y),w=fade(z);const A=perm[X]+Y,AA=perm[A]+Z,AB=perm[A+1]+Z,B=perm[X+1]+Y,BA=perm[B]+Z,BB=perm[B+1]+Z;return lerp(lerp(lerp(grad(perm[AA],x,y,z),grad(perm[BA],x-1,y,z),u),lerp(grad(perm[AB],x,y-1,z),grad(perm[BB],x-1,y-1,z),u),v),lerp(lerp(grad(perm[AA+1],x,y,z-1),grad(perm[BA+1],x-1,y,z-1),u),lerp(grad(perm[AB+1],x,y-1,z-1),grad(perm[BB+1],x-1,y-1,z-1),u),v),w)},fbm(x,y,z,octaves,lacunarity,gain){let sum=0,amp=1,freq=1,max=0;for(let i=0;i<octaves;i++){sum+=amp*this.noise(x*freq,y*freq,z*freq);max+=amp;amp*=gain;freq*=lacunarity}return sum/max}}})();
 
 // ============ CONSTANTS ============
 const CHUNK_SIZE=16;
@@ -132,7 +132,7 @@ else if(y<h){if(biome==='mushroom')block=B.MYCELIUM;else if(biome==='crimson')bl
 else if(y===h){if(biome==='ocean')block=B.SAND;else if(biome==='mushroom')block=B.MYCELIUM;else if(biome==='crimson')block=B.CRIMSON;else block=B.GRASS}
 else if(y<=WATER_LEVEL&&y>h)block=B.WATER;
 if(y>=3&&y<h-1){if(Math.random()<0.008&&biome!=='ocean')block=B.GOLD_ORE;if(Math.random()<0.004&&biome==='mountains')block=B.DIAMOND_ORE;if(Math.random()<0.003)block=B.LAPIS;if(Math.random()<0.002)block=B.EMERALD}
-if(block!==B.AIR)chunk[((y*CHUNK_SIZE)+lx)*CHUNK_SIZE+lz]=block}}}
+if(block!==B.AIR)chunk[((y*CHUNK_SIZE)+lx)*CHUNK_SIZE+lz]=block}}
 this.chunks.set(key,chunk);
 if(Math.abs(cx)<=2&&Math.abs(cz)<=2)this.generateStructures(cx,cz)}
 generateHeight(x,z){const n1=PerlinNoise.fbm(x*0.01,z*0.01,0,6,2.0,0.5);const n2=PerlinNoise.fbm(x*0.05,z*0.05,0,3,2.0,0.5)*0.3;const n3=PerlinNoise.noise(x*0.002,z*0.002,0)*15;return Math.floor(WATER_LEVEL+5+n1*15+n2*8+n3)}
@@ -225,7 +225,7 @@ const blockIndex=block-1;const atlasIdx=face.face==='top'?0:face.face==='side'?A
 const atlasX=(blockIndex%ATLAS_SIZE+atlasIdx)%ATLAS_SIZE;const atlasY=Math.floor((blockIndex%ATLAS_SIZE+atlasIdx)/ATLAS_SIZE)+(blockIndex>=ATLAS_SIZE?1:0);
 const faceColor=BLOCK_COLORS[block]?BLOCK_COLORS[block][face.face]:[128,128,128];const brightness=face.face==='top'?1.0:face.face==='side'?(face.dir[0]>0?0.8:face.dir[0]<0?0.7:face.dir[2]>0?0.9:0.75):0.6;
 face.corners.forEach((corner,i)=>{positions.push(wx+corner[0],ly+corner[1],wz+corner[2]);normals.push(face.dir[0],face.dir[1],face.dir[2]);const u=(atlasX+(face.uv[i][0]))/ATLAS_SIZE;const v=(atlasY+(face.uv[i][1]))/ATLAS_SIZE;uvs.push(u,v);colors.push(faceColor[0]/255*brightness,faceColor[1]/255*brightness,faceColor[2]/255*brightness)});
-indices.push(vtxCount,vtxCount+1,vtxCount+2,vtxCount,vtxCount+2,vtxCount+3);vtxCount+=4})})
+indices.push(vtxCount,vtxCount+1,vtxCount+2,vtxCount,vtxCount+2,vtxCount+3);vtxCount+=4})}
 if(positions.length===0)return null;
 const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geo.setAttribute('normal',new THREE.Float32BufferAttribute(normals,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));geo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));geo.setIndex(indices);return geo}
 
@@ -288,3 +288,9 @@ start(){const pcx=Math.floor(this.player.position.x/CHUNK_SIZE);const pcz=Math.f
 for(let dx=-RENDER_DISTANCE;dx<=RENDER_DISTANCE;dx++)for(let dz=-RENDER_DISTANCE;dz<=RENDER_DISTANCE;dz++){this.world.generateChunk(pcx+dx,pcz+dz)}
 const h=this.world.getHeight(8,8);this.player.position.set(8,h+3,8);
 this.animate()}}
+
+let game;
+window.addEventListener('load',()=>{game=new Game();game.start()});
+</script>
+</body>
+</html>
