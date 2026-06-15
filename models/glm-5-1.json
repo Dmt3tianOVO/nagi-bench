@@ -1,6 +1,18 @@
 {
   "label": "GLM-5.1",
   "vendor": "Zhipu AI",
-  "artifactDir": "glm-5-1/default",
-  "order": 120
+  "harness": "ZCode",
+  "effort": "Max",
+  "artifactDir": "glm-5-1/zcode-max",
+  "order": 20,
+  "runs": {
+    "pelican-cycling": {
+      "file": "pelican-cycling.html",  
+      "note": {
+        "zh": "在智谱清言网页版 GLM-5.1、使用 cases.json 中 pelican-cycling 的提示词逐字输入，一次生成，输出为 HTML 格式（内嵌 SVG），无任何修复。",
+        "en": "In Zhipu Qingyan web app GLM-5.1, using the pelican-cycling prompt from cases.json verbatim, one-shot generation, output as HTML format (embedded SVG), no fixes."
+      },
+      "contributor": "Dmt3tian"
+    }
+  }
 }

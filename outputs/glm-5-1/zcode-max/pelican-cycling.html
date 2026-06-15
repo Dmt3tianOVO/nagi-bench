@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>海边骑自行车的鹈鹕</title>
+<link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { overflow: hidden; background: #1a0a2e; cursor: default; }
+  canvas { display: block; }
+  .title-overlay {
+    position: fixed;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'ZCOOL KuaiLe', cursive;
+    font-size: clamp(20px, 4vw, 36px);
+    color: rgba(255,255,255,0.85);
+    text-shadow: 0 2px 20px rgba(0,0,0,0.4), 0 0 40px rgba(255,140,60,0.3);
+    pointer-events: none;
+    z-index: 10;
+    letter-spacing: 4px;
+    white-space: nowrap;
+  }
+  .hint {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'ZCOOL KuaiLe', cursive;
+    font-size: 14px;
+    color: rgba(255,255,255,0.5);
+    pointer-events: none;
+    z-index: 10;
+  }
+</style>
+</head>
+<body>
+<div class="title-overlay">海边骑自行车的鹈鹕</div>
+<div class="hint">移动鼠标改变风向 · 点击让鹈鹕叫一声</div>
+<canvas id="c"></canvas>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H, groundY;
+let time = 0;
+let mouseX = 0.5, mouseY = 0.5;
+let windX = 1; // 风向
+let pelicanSquawk = 0; // 叫唤动画计时器
+const particles = []; // 飞溅沙粒
+const clouds = [];
+const seagulls = [];
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  groundY = H * 0.72;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// 鼠标交互
+window.addEventListener('mousemove', e => {
+  mouseX = e.clientX / W;
+  mouseY = e.clientY / H;
+  windX = (mouseX - 0.5) * 3;
+});
+window.addEventListener('click', () => {
+  pelicanSquawk = 1.0;
+});
+
+// 初始化云朵
+for (let i = 0; i < 8; i++) {
+  clouds.push({
+    x: Math.random() * W * 1.5 - W * 0.25,
+    y: H * 0.05 + Math.random() * H * 0.2,
+    w: 80 + Math.random() * 160,
+    h: 30 + Math.random() * 40,
+    speed: 0.15 + Math.random() * 0.35,
+    opacity: 0.3 + Math.random() * 0.5
+  });
+}
+
+// 初始化海鸥
+for (let i = 0; i < 4; i++) {
+  seagulls.push({
+    x: Math.random() * W,
+    y: H * 0.1 + Math.random() * H * 0.2,
+    speed: 0.5 + Math.random() * 1,
+    wingPhase: Math.random() * Math.PI * 2,
+    size: 8 + Math.random() * 6
+  });
+}
+
+// 自行车参数
+const bike = {
+  wheelR: 0,
+  get wheelBase() { return this.wheelR * 3.2; },
+  cx: 0, cy: 0, // 后轮中心
+  pedalAngle: 0,
+  speed: 2.5
+};
+
+function updateBike() {
+  bike.wheelR = Math.max(20, H * 0.045);
+  bike.cx = W * 0.38;
+  bike.cy = groundY - bike.wheelR - 4;
+  bike.pedalAngle += bike.speed * 0.06;
+}
+
+// ========== 绘制函数 ==========
+
+// 天空
+function drawSky() {
+  const g = ctx.createLinearGradient(0, 0, 0, groundY);
+  g.addColorStop(0, '#1a1a4e');
+  g.addColorStop(0.2, '#2d4a7a');
+  g.addColorStop(0.45, '#5b8cb8');
+  g.addColorStop(0.65, '#e8a860');
+  g.addColorStop(0.82, '#f0c478');
+  g.addColorStop(1, '#fce4a8');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, groundY + 2);
+}
+
+// 太阳
+function drawSun() {
+  const sx = W * 0.78, sy = groundY * 0.42;
+  const sr = Math.max(30, H * 0.06);
+  // 光晕
+  for (let i = 5; i >= 0; i--) {
+    const r = sr * (1 + i * 0.7);
+    const a = 0.06 - i * 0.008;
+    ctx.beginPath();
+    ctx.arc(sx, sy, r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,200,80,${Math.max(0, a)})`;
+    ctx.fill();
+  }
+  // 太阳本体
+  const sg = ctx.createRadialGradient(sx, sy, 0, sx, sy, sr);
+  sg.addColorStop(0, '#fffbe0');
+  sg.addColorStop(0.6, '#ffe070');
+  sg.addColorStop(1, '#ffb030');
+  ctx.beginPath();
+  ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+  ctx.fillStyle = sg;
+  ctx.fill();
+}
+
+// 云朵
+function drawClouds() {
+  clouds.forEach(c => {
+    c.x += (c.speed + windX * 0.3) * 0.5;
+    if (c.x > W + 200) c.x = -200;
+    if (c.x < -300) c.x = W + 100;
+    ctx.save();
+    ctx.globalAlpha = c.opacity;
+    ctx.fillStyle = '#fff';
+    // 多个圆形组合成云
+    const cx = c.x, cy = c.y;
+    const blobs = [
+      [0, 0, c.w * 0.4, c.h * 0.5],
+      [-c.w * 0.25, c.h * 0.1, c.w * 0.3, c.h * 0.4],
+      [c.w * 0.2, c.h * 0.05, c.w * 0.35, c.h * 0.45],
+      [c.w * 0.05, -c.h * 0.15, c.w * 0.25, c.h * 0.35],
+    ];
+    blobs.forEach(([dx, dy, rw, rh]) => {
+      ctx.beginPath();
+      ctx.ellipse(cx + dx, cy + dy, Math.max(1, rw), Math.max(1, rh), 0, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.restore();
+  });
+}
+
+// 海鸥
+function drawSeagulls() {
+  seagulls.forEach(s => {
+    s.x += s.speed + windX * 0.5;
+    s.wingPhase += 0.08;
+    if (s.x > W + 50) s.x = -50;
+    if (s.x < -80) s.x = W + 30;
+    const wingY = Math.sin(s.wingPhase) * s.size * 0.5;
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.strokeStyle = 'rgba(40,40,60,0.7)';
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-s.size, wingY);
+    ctx.quadraticCurveTo(-s.size * 0.3, wingY * 0.3, 0, 0);
+    ctx.quadraticCurveTo(s.size * 0.3, wingY * 0.3, s.size, wingY);
+    ctx.stroke();
+    ctx.restore();
+  });
+}
+
+// 海洋
+function drawOcean() {
+  const oy = groundY - H * 0.06;
+  // 深海
+  const og = ctx.createLinearGradient(0, oy, 0, groundY);
+  og.addColorStop(0, '#1a6b8a');
+  og.addColorStop(0.5, '#1e7a96');
+  og.addColorStop(1, '#2a9ab8');
+  ctx.fillStyle = og;
+  ctx.fillRect(0, oy, W, groundY - oy + 2);
+
+  // 波浪线
+  for (let layer = 0; layer < 4; layer++) {
+    const ly = oy + layer * (groundY - oy) * 0.25;
+    ctx.beginPath();
+    ctx.moveTo(0, ly);
+    for (let x = 0; x <= W; x += 4) {
+      const wave = Math.sin(x * 0.015 + time * 0.02 + layer * 1.5) * 4 +
+                   Math.sin(x * 0.008 + time * 0.015 + layer) * 6;
+      ctx.lineTo(x, ly + wave);
+    }
+    ctx.lineTo(W, groundY);
+    ctx.lineTo(0, groundY);
+    ctx.closePath();
+    const alpha = 0.15 - layer * 0.03;
+    ctx.fillStyle = `rgba(255,255,255,${Math.max(0.02, alpha)})`;
+    ctx.fill();
+  }
+
+  // 太阳倒影
+  const sx = W * 0.78;
+  for (let i = 0; i < 15; i++) {
+    const ry = oy + i * 5 + Math.sin(time * 0.03 + i) * 2;
+    const rw = 4 + Math.sin(time * 0.05 + i * 0.5) * 3;
+    const rx = sx + Math.sin(time * 0.02 + i * 0.7) * 8;
+    ctx.fillStyle = `rgba(255,220,100,${0.3 - i * 0.018})`;
+    ctx.fillRect(rx - rw, ry, rw * 2, 2);
+  }
+}
+
+// 沙滩
+function drawBeach() {
+  const bg = ctx.createLinearGradient(0, groundY, 0, H);
+  bg.addColorStop(0, '#f0d49a');
+  bg.addColorStop(0.3, '#e8c880');
+  bg.addColorStop(0.7, '#d4b06a');
+  bg.addColorStop(1, '#c09850');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, groundY, W, H - groundY);
+
+  // 沙粒纹理
+  ctx.save();
+  ctx.globalAlpha = 0.15;
+  for (let i = 0; i < 200; i++) {
+    const sx = (i * 137.5 + time * 0.3) % W;
+    const sy = groundY + 5 + (i * 73.7) % (H - groundY - 10);
+    const sr = 0.5 + (i % 3) * 0.5;
+    ctx.beginPath();
+    ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+    ctx.fillStyle = i % 2 ? '#c8a050' : '#f0e0b0';
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // 湿沙区
+  ctx.fillStyle = 'rgba(160,130,80,0.25)';
+  ctx.fillRect(0, groundY, W, 12);
+
+  // 水边泡沫
+  for (let x = 0; x < W; x += 3) {
+    const foamH = Math.sin(x * 0.02 + time * 0.03) * 3 + 3;
+    const foamY = groundY - foamH + Math.sin(x * 0.05 + time * 0.04) * 1.5;
+    if (foamH > 2) {
+      ctx.fillStyle = `rgba(255,255,255,${0.3 + Math.sin(x * 0.03 + time * 0.05) * 0.15})`;
+      ctx.fillRect(x, foamY, 3, 2);
+    }
+  }
+}
+
+// 贝壳装饰
+function drawShells() {
+  const shells = [
+    { x: W * 0.12, y: groundY + 20, s: 1, c: '#f5e0c0' },
+    { x: W * 0.65, y: groundY + 35, s: 0.7, c: '#e8c8a0' },
+    { x: W * 0.85, y: groundY + 15, s: 0.9, c: '#f0d0b0' },
+    { x: W * 0.45, y: groundY + 50, s: 0.6, c: '#dcc090' },
+  ];
+  shells.forEach(sh => {
+    ctx.save();
+    ctx.translate(sh.x, sh.y);
+    ctx.scale(sh.s, sh.s);
+    // 扇贝形状
+    ctx.beginPath();
+    ctx.moveTo(0, 5);
+    ctx.quadraticCurveTo(-8, -2, -6, -8);
+    ctx.quadraticCurveTo(-3, -12, 0, -10);
+    ctx.quadraticCurveTo(3, -12, 6, -8);
+    ctx.quadraticCurveTo(8, -2, 0, 5);
+    ctx.fillStyle = sh.c;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(150,120,70,0.4)';
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+    // 纹路
+    for (let i = -2; i <= 2; i++) {
+      ctx.beginPath();
+      ctx.moveTo(0, 4);
+      ctx.quadraticCurveTo(i * 3, -4, i * 4, -9);
+      ctx.strokeStyle = 'rgba(150,120,70,0.25)';
+      ctx.lineWidth = 0.4;
+      ctx.stroke();
+    }
+    ctx.restore();
+  });
+}
+
+// 棕榈树
+function drawPalmTree(px, py, scale, lean) {
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.scale(scale, scale);
+
+  // 树干
+  ctx.beginPath();
+  ctx.moveTo(-6, 0);
+  ctx.quadraticCurveTo(-4 + lean * 15, -80, lean * 8, -160);
+  ctx.quadraticCurveTo(lean * 8 + 4, -165, lean * 8 + 6, -160);
+  ctx.quadraticCurveTo(4 + lean * 15, -80, 6, 0);
+  ctx.closePath();
+  const tg = ctx.createLinearGradient(0, 0, 0, -160);
+  tg.addColorStop(0, '#6b4226');
+  tg.addColorStop(0.5, '#8b5a30');
+  tg.addColorStop(1, '#7a4e28');
+  ctx.fillStyle = tg;
+  ctx.fill();
+  // 树干纹路
+  for (let i = 0; i < 8; i++) {
+    const ty = -i * 20;
+    const tx = lean * (i * 2);
+    ctx.beginPath();
+    ctx.arc(tx, ty, 7 - i * 0.3, 0.3, Math.PI - 0.3);
+    ctx.strokeStyle = 'rgba(90,50,20,0.3)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  // 椰叶
+  const leafBase = { x: lean * 8, y: -160 };
+  const leafAngles = [-2.2, -1.6, -1.0, -0.4, 0.3, 0.9, 1.5, 2.0];
+  leafAngles.forEach((angle, idx) => {
+    const windOffset = Math.sin(time * 0.025 + idx) * 0.08 * windX;
+    const a = angle + windOffset;
+    const len = 70 + (idx % 3) * 15;
+    ctx.save();
+    ctx.translate(leafBase.x, leafBase.y);
+    ctx.rotate(a);
+    // 叶片
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(len * 0.4, -8, len, -4);
+    ctx.quadraticCurveTo(len * 0.4, 4, 0, 0);
+    const lg = ctx.createLinearGradient(0, 0, len, 0);
+    lg.addColorStop(0, '#2d7a2d');
+    lg.addColorStop(0.5, '#3a9935');
+    lg.addColorStop(1, '#4db840');
+    ctx.fillStyle = lg;
+    ctx.fill();
+    // 叶脉
+    ctx.beginPath();
+    ctx.moveTo(2, 0);
+    ctx.lineTo(len - 5, -2);
+    ctx.strokeStyle = 'rgba(30,80,20,0.4)';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+    ctx.restore();
+  });
+
+  // 椰子
+  const coconuts = [
+    { dx: -3, dy: -155 },
+    { dx: 5, dy: -152 },
+    { dx: 0, dy: -148 },
+  ];
+  coconuts.forEach(c => {
+    ctx.beginPath();
+    ctx.arc(leafBase.x + c.dx, leafBase.y + c.dy + 10, 5, 0, Math.PI * 2);
+    ctx.fillStyle = '#5a3a18';
+    ctx.fill();
+    ctx.strokeStyle = '#3a2510';
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+  });
+
+  ctx.restore();
+}
+
+// ========== 自行车 ==========
+function drawWheel(cx, cy, r) {
+  // 轮胎
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.strokeStyle = '#2a2a2a';
+  ctx.lineWidth = r * 0.15;
+  ctx.stroke();
+  // 轮辋
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.82, 0, Math.PI * 2);
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  // 辐条
+  const spokeCount = 12;
+  for (let i = 0; i < spokeCount; i++) {
+    const a = (i / spokeCount) * Math.PI * 2 + bike.pedalAngle * 1.5;
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(a) * r * 0.15, cy + Math.sin(a) * r * 0.15);
+    ctx.lineTo(cx + Math.cos(a) * r * 0.78, cy + Math.sin(a) * r * 0.78);
+    ctx.strokeStyle = '#999';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+  }
+  // 轮毂
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.15, 0, Math.PI * 2);
+  ctx.fillStyle = '#777';
+  ctx.fill();
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+function drawBikeFrame() {
+  const R = bike.wheelR;
+  const rearX = bike.cx, rearY = bike.cy;
+  const frontX = bike.cx + bike.wheelBase, frontY = bike.cy;
+
+  // 车架颜色
+  const frameColor = '#c0392b';
+  const frameDark = '#922b20';
+
+  // 后轮
+  drawWheel(rearX, rearY, R);
+  // 前轮
+  drawWheel(frontX, frontY, R);
+
+  // 下管: 后轮轴 → 踏板轴
+  const bbX = rearX + R * 1.3;
+  const bbY = rearY + R * 0.6;
+  ctx.beginPath();
+  ctx.moveTo(rearX, rearY);
+  ctx.lineTo(bbX, bbY);
+  ctx.strokeStyle = frameColor;
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  // 立管: 踏板轴 → 座管顶
+  const seatTopX = bbX - R * 0.4;
+  const seatTopY = bbY - R * 2.2;
+  ctx.beginPath();
+  ctx.moveTo(bbX, bbY);
+  ctx.lineTo(seatTopX, seatTopY);
+  ctx.strokeStyle = frameColor;
+  ctx.lineWidth = 4;
+  ctx.stroke();
+
+  // 上管: 座管顶 → 头管顶
+  const headTopX = frontX - R * 0.3;
+  const headTopY = frontY - R * 2.4;
+  ctx.beginPath();
+  ctx.moveTo(seatTopX, seatTopY);
+  ctx.lineTo(headTopX, headTopY);
+  ctx.strokeStyle = frameColor;
+  ctx.lineWidth = 4;
+  ctx.stroke();
+
+  // 下管2: 踏板轴 → 头管底
+  const headBotX = frontX - R * 0.2;
+  const headBotY = frontY - R * 0.6;
+  ctx.beginPath();
+  ctx.moveTo(bbX, bbY);
+  ctx.lineTo(headBotX, headBotY);
+  ctx.strokeStyle = frameColor;
+  ctx.lineWidth = 4;
+  ctx.stroke();
+
+  // 头管
+  ctx.beginPath();
+  ctx.moveTo(headBotX, headBotY);
+  ctx.lineTo(headTopX, headTopY);
+  ctx.strokeStyle = frameDark;
+  ctx.lineWidth = 5;
+  ctx.stroke();
+
+  // 前叉
+  ctx.beginPath();
+  ctx.moveTo(headTopX, headTopY);
+  ctx.quadraticCurveTo(headTopX + R * 0.3, headTopY + R * 0.5, frontX, frontY);
+  ctx.strokeStyle = '#666';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  // 座管延伸 (座椅杆)
+  const seatX = seatTopX;
+  const seatY = seatTopY;
+  // 座椅
+  ctx.beginPath();
+  ctx.ellipse(seatX, seatY - 4, R * 0.55, R * 0.18, -0.1, 0, Math.PI * 2);
+  ctx.fillStyle = '#2c2c2c';
+  ctx.fill();
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // 车把
+  const handleX = headTopX;
+  const handleY = headTopY - R * 0.3;
+  ctx.beginPath();
+  ctx.moveTo(handleX - R * 0.5, handleY - R * 0.2);
+  ctx.quadraticCurveTo(handleX - R * 0.1, handleY - R * 0.6, handleX + R * 0.1, handleY - R * 0.3);
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 3.5;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+  // 车把握把
+  ctx.beginPath();
+  ctx.arc(handleX - R * 0.5, handleY - R * 0.2, 3, 0, Math.PI * 2);
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(handleX + R * 0.1, handleY - R * 0.3, 3, 0, Math.PI * 2);
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fill();
+
+  // 踏板曲柄和踏板
+  const crankLen = R * 0.5;
+  for (let side = 0; side < 2; side++) {
+    const pa = bike.pedalAngle + side * Math.PI;
+    const pedalX = bbX + Math.cos(pa) * crankLen;
+    const pedalY = bbY + Math.sin(pa) * crankLen;
+    // 曲柄
+    ctx.beginPath();
+    ctx.moveTo(bbX, bbY);
+    ctx.lineTo(pedalX, pedalY);
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    // 踏板
+    ctx.beginPath();
+    ctx.ellipse(pedalX, pedalY + 3, 8, 3, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#444';
+    ctx.fill();
+  }
+
+  // 链条（简化为椭圆）
+  ctx.beginPath();
+  ctx.ellipse(bbX, bbY + 2, R * 0.55, R * 0.2, 0, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(80,80,80,0.4)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([3, 3]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  return { seatX, seatY, handleX, handleY, bbX, bbY, headTopX, headTopY, R };
+}
+
+// ========== 鹈鹕 ==========
+function drawPelican(bp) {
+  const { seatX, seatY, handleX, handleY, bbX, bbY, R } = bp;
+  const bob = Math.sin(time * 0.06) * 2; // 骑车颠簸
+  const lean = Math.sin(time * 0.04) * 0.02; // 微微倾斜
+
+  ctx.save();
+  ctx.translate(0, bob);
+  ctx.rotate(lean);
+
+  // 身体中心
+  const bodyX = seatX + R * 0.3;
+  const bodyY = seatY - R * 1.8;
+
+  // ---- 腿 ----
+  // 右腿（踩踏板）
+  const rightPedalAngle = bike.pedalAngle;
+  const rightPedalX = bbX + Math.cos(rightPedalAngle) * R * 0.5;
+  const rightPedalY = bbY + Math.sin(rightPedalAngle) * R * 0.5;
+
+  // 左腿
+  const leftPedalAngle = bike.pedalAngle + Math.PI;
+  const leftPedalX = bbX + Math.cos(leftPedalAngle) * R * 0.5;
+  const leftPedalY = bbY + Math.sin(leftPedalAngle) * R * 0.5;
+
+  // 画左腿（后面）
+  ctx.beginPath();
+  ctx.moveTo(bodyX - R * 0.2, bodyY + R * 0.7);
+  const leftKneeX = (bodyX - R * 0.2 + leftPedalX) * 0.5 - R * 0.15;
+  const leftKneeY = (bodyY + R * 0.7 + leftPedalY) * 0.5 + R * 0.3;
+  ctx.quadraticCurveTo(leftKneeX, leftKneeY, leftPedalX, leftPedalY + 3);
+  ctx.strokeStyle = '#e8a050';
+  ctx.lineWidth = 5;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+  // 左脚
+  ctx.beginPath();
+  ctx.ellipse(leftPedalX + 4, leftPedalY + 5, 8, 4, 0.2, 0, Math.PI * 2);
+  ctx.fillStyle = '#e8a050';
+  ctx.fill();
+
+  // 画右腿（前面）
+  ctx.beginPath();
+  ctx.moveTo(bodyX + R * 0.1, bodyY + R * 0.7);
+  const rightKneeX = (bodyX + R * 0.1 + rightPedalX) * 0.5 + R * 0.1;
+  const rightKneeY = (bodyY + R * 0.7 + rightPedalY) * 0.5 + R * 0.3;
+  ctx.quadraticCurveTo(rightKneeX, rightKneeY, rightPedalX, rightPedalY + 3);
+  ctx.strokeStyle = '#f0b060';
+  ctx.lineWidth = 5.5;
+  ctx.stroke();
+  // 右脚
+  ctx.beginPath();
+  ctx.ellipse(rightPedalX + 4, rightPedalY + 5, 9, 4, 0.2, 0, Math.PI * 2);
+  ctx.fillStyle = '#f0b060';
+  ctx.fill();
+
+  // ---- 翅膀（后面那只，在身体后面画） ----
+  const wingBackAngle = Math.sin(time * 0.05) * 0.12;
+  ctx.save();
+  ctx.translate(bodyX - R * 0.1, bodyY + R * 0.1);
+  ctx.rotate(-0.3 + wingBackAngle);
+  ctx.beginPath();
+  ctx.ellipse(0, 0, R * 0.4, R * 1.3, 0, 0, Math.PI * 2);
+  const wbg = ctx.createLinearGradient(-R * 0.4, 0, R * 0.4, 0);
+  wbg.addColorStop(0, '#d0d8e0');
+  wbg.addColorStop(0.5, '#e8ecf0');
+  wbg.addColorStop(1, '#c8d0d8');
+  ctx.fillStyle = wbg;
+  ctx.fill();
+  // 翼尖黑色
+  ctx.beginPath();
+  ctx.ellipse(0, -R * 1.0, R * 0.3, R * 0.25, 0, 0, Math.PI * 2);
+  ctx.fillStyle = '#3a3a4a';
+  ctx.fill();
+  ctx.restore();
+
+  // ---- 身体 ----
+  ctx.beginPath();
+  ctx.ellipse(bodyX, bodyY, R * 0.75, R * 1.0, 0.1, 0, Math.PI * 2);
+  const bodyGrad = ctx.createRadialGradient(bodyX - R * 0.2, bodyY - R * 0.3, R * 0.1, bodyX, bodyY, R * 1.0);
+  bodyGrad.addColorStop(0, '#ffffff');
+  bodyGrad.addColorStop(0.4, '#f5f0ea');
+  bodyGrad.addColorStop(0.8, '#e8e0d8');
+  bodyGrad.addColorStop(1, '#d8d0c8');
+  ctx.fillStyle = bodyGrad;
+  ctx.fill();
+
+  // 胸部浅黄
+  ctx.beginPath();
+  ctx.ellipse(bodyX + R * 0.15, bodyY + R * 0.2, R * 0.45, R * 0.6, 0.15, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,240,200,0.35)';
+  ctx.fill();
+
+  // ---- 翅膀（前面那只） ----
+  const wingFrontAngle = Math.sin(time * 0.05 + 0.5) * 0.1;
+  // 翅膀向前伸握车把
+  ctx.save();
+  ctx.translate(bodyX + R * 0.4, bodyY - R * 0.3);
+  ctx.rotate(0.5 + wingFrontAngle);
+  // 上臂
+  ctx.beginPath();
+  ctx.ellipse(R * 0.2, 0, R * 0.6, R * 0.2, 0.3, 0, Math.PI * 2);
+  const wfg = ctx.createLinearGradient(0, -R * 0.2, 0, R * 0.2);
+  wfg.addColorStop(0, '#e8ecf0');
+  wfg.addColorStop(1, '#c0c8d0');
+  ctx.fillStyle = wfg;
+  ctx.fill();
+  // 翼尖
+  ctx.beginPath();
+  ctx.ellipse(R * 0.7, R * 0.05, R * 0.2, R * 0.12, 0.3, 0, Math.PI * 2);
+  ctx.fillStyle = '#3a3a4a';
+  ctx.fill();
+  ctx.restore();
+
+  // 另一只前翅膀（握车把）
+  ctx.save();
+  ctx.translate(bodyX + R * 0.3, bodyY - R * 0.5);
+  ctx.rotate(0.3 + wingFrontAngle * 0.7);
+  ctx.beginPath();
+  ctx.ellipse(R * 0.15, 0, R * 0.5, R * 0.18, 0.2, 0, Math.PI * 2);
+  ctx.fillStyle = '#d8dce0';
+  ctx.fill();
+  ctx.restore();
+
+  // ---- 尾巴 ----
+  const tailWag = Math.sin(time * 0.07) * 0.15;
+  ctx.save();
+  ctx.translate(bodyX - R * 0.6, bodyY + R * 0.2);
+  ctx.rotate(-0.4 + tailWag);
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.quadraticCurveTo(-R * 0.5, -R * 0.2, -R * 0.8, -R * 0.1);
+  ctx.quadraticCurveTo(-R * 0.5, R * 0.1, 0, R * 0.1);
+  ctx.fillStyle = '#d0c8c0';
+  ctx.fill();
+  ctx.restore();
+  // 尾羽更多
+  ctx.save();
+  ctx.translate(bodyX - R * 0.6, bodyY + R * 0.3);
+  ctx.rotate(-0.5 + tailWag * 1.2);
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.quadraticCurveTo(-R * 0.6, 0, -R * 0.9, R * 0.15);
+  ctx.quadraticCurveTo(-R * 0.5, R * 0.15, 0, R * 0.05);
+  ctx.fillStyle = '#c0b8b0';
+  ctx.fill();
+  ctx.restore();
+
+  // ---- 脖子 ----
+  const neckBaseX = bodyX + R * 0.4;
+  const neckBaseY = bodyY - R * 0.6;
+  const neckTopX = bodyX + R * 0.8;
+  const neckTopY = bodyY - R * 2.2;
+  const neckCtrlX = bodyX + R * 1.0;
+  const neckCtrlY = bodyY - R * 1.5;
+
+  // 脖子形状（S曲线，有宽度）
+  ctx.beginPath();
+  ctx.moveTo(neckBaseX - R * 0.12, neckBaseY);
+  ctx.quadraticCurveTo(neckCtrlX - R * 0.15, neckCtrlY, neckTopX - R * 0.08, neckTopY);
+  ctx.lineTo(neckTopX + R * 0.08, neckTopY);
+  ctx.quadraticCurveTo(neckCtrlX + R * 0.15, neckCtrlY, neckBaseX + R * 0.12, neckBaseY);
+  ctx.closePath();
+  const neckGrad = ctx.createLinearGradient(neckBaseX, neckBaseY, neckTopX, neckTopY);
+  neckGrad.addColorStop(0, '#f0e8e0');
+  neckGrad.addColorStop(0.5, '#e8ddd5');
+  neckGrad.addColorStop(1, '#f5efe8');
+  ctx.fillStyle = neckGrad;
+  ctx.fill();
+
+  // ---- 头部 ----
+  const headX = neckTopX;
+  const headY = neckTopY - R * 0.15;
+  const headR = R * 0.32;
+
+  // 头部
+  ctx.beginPath();
+  ctx.ellipse(headX, headY, headR * 1.1, headR, -0.15, 0, Math.PI * 2);
+  const headGrad = ctx.createRadialGradient(headX - 3, headY - 3, 1, headX, headY, headR);
+  headGrad.addColorStop(0, '#ffffff');
+  headGrad.addColorStop(0.6, '#f5f0ea');
+  headGrad.addColorStop(1, '#e0d8d0');
+  ctx.fillStyle = headGrad;
+  ctx.fill();
+
+  // 头顶微黄
+  ctx.beginPath();
+  ctx.ellipse(headX, headY - headR * 0.3, headR * 0.7, headR * 0.4, -0.15, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,230,180,0.3)';
+  ctx.fill();
+
+  // ---- 嘴/喙 ----
+  const beakBaseX = headX + headR * 0.8;
+  const beakBaseY = headY + headR * 0.1;
+  const beakLen = R * 1.3;
+  const beakOpen = pelicanSquawk > 0 ? Math.sin(pelicanSquawk * Math.PI) * 0.25 : 0;
+
+  // 上喙
+  ctx.beginPath();
+  ctx.moveTo(beakBaseX, beakBaseY - R * 0.04);
+  ctx.quadraticCurveTo(beakBaseX + beakLen * 0.5, beakBaseY - R * 0.08 - beakOpen * R, beakBaseX + beakLen, beakBaseY - R * 0.02);
+  ctx.lineTo(beakBaseX + beakLen + 3, beakBaseY);
+  ctx.lineTo(beakBaseX, beakBaseY);
+  ctx.closePath();
+  const upperBeakGrad = ctx.createLinearGradient(beakBaseX, beakBaseY - R * 0.1, beakBaseX, beakBaseY);
+  upperBeakGrad.addColorStop(0, '#f0a830');
+  upperBeakGrad.addColorStop(0.5, '#e89820');
+  upperBeakGrad.addColorStop(1, '#d08818');
+  ctx.fillStyle = upperBeakGrad;
+  ctx.fill();
+  // 上喙钩尖
+  ctx.beginPath();
+  ctx.moveTo(beakBaseX + beakLen, beakBaseY - R * 0.02);
+  ctx.quadraticCurveTo(beakBaseX + beakLen + 6, beakBaseY + R * 0.02, beakBaseX + beakLen + 2, beakBaseY + R * 0.06);
+  ctx.strokeStyle = '#b07010';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  // 下喙
+  ctx.beginPath();
+  ctx.moveTo(beakBaseX, beakBaseY + R * 0.02);
+  ctx.quadraticCurveTo(beakBaseX + beakLen * 0.5, beakBaseY + R * 0.06 + beakOpen * R * 1.5, beakBaseX + beakLen, beakBaseY + R * 0.02);
+  ctx.lineTo(beakBaseX, beakBaseY);
+  ctx.closePath();
+  ctx.fillStyle = '#d89020';
+  ctx.fill();
+
+  // 喉囊（下喙下方的弹性皮肤）
+  const pouchSag = R * 0.25 + beakOpen * R * 0.5;
+  ctx.beginPath();
+  ctx.moveTo(beakBaseX + R * 0.15, beakBaseY + R * 0.04);
+  ctx.quadraticCurveTo(beakBaseX + beakLen * 0.25, beakBaseY + pouchSag + R * 0.15,
+                        beakBaseX + beakLen * 0.55, beakBaseY + pouchSag + R * 0.05);
+  ctx.quadraticCurveTo(beakBaseX + beakLen * 0.75, beakBaseY + R * 0.04,
+                        beakBaseX + beakLen * 0.9, beakBaseY + R * 0.02);
+  // 回来
+  ctx.lineTo(beakBaseX + R * 0.15, beakBaseY + R * 0.02);
+  ctx.closePath();
+  const pouchGrad = ctx.createLinearGradient(beakBaseX, beakBaseY, beakBaseX, beakBaseY + pouchSag + R * 0.2);
+  pouchGrad.addColorStop(0, '#f0b848');
+  pouchGrad.addColorStop(0.5, '#e8a030');
+  pouchGrad.addColorStop(1, '#d89028');
+  ctx.fillStyle = pouchGrad;
+  ctx.fill();
+  // 喉囊纹路
+  ctx.beginPath();
+  ctx.moveTo(beakBaseX + beakLen * 0.2, beakBaseY + R * 0.08);
+  ctx.quadraticCurveTo(beakBaseX + beakLen * 0.35, beakBaseY + pouchSag * 0.8,
+                        beakBaseX + beakLen * 0.5, beakBaseY + R * 0.06);
+  ctx.strokeStyle = 'rgba(180,120,30,0.3)';
+  ctx.lineWidth = 0.8;
+  ctx.stroke();
+
+  // ---- 眼睛 ----
+  const eyeX = headX + headR * 0.45;
+  const eyeY = headY - headR * 0.15;
+  // 眼白
+  ctx.beginPath();
+  ctx.ellipse(eyeX, eyeY, R * 0.1, R * 0.09, 0, 0, Math.PI * 2);
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+  ctx.strokeStyle = '#444';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  // 虹膜
+  ctx.beginPath();
+  ctx.arc(eyeX + 1, eyeY, R * 0.055, 0, Math.PI * 2);
+  ctx.fillStyle = '#5a3a1a';
+  ctx.fill();
+  // 瞳孔
+  ctx.beginPath();
+  ctx.arc(eyeX + 1.5, eyeY, R * 0.03, 0, Math.PI * 2);
+  ctx.fillStyle = '#111';
+  ctx.fill();
+  // 高光
+  ctx.beginPath();
+  ctx.arc(eyeX - 1, eyeY - 2, R * 0.018, 0, Math.PI * 2);
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+
+  // 叫唤时眼睛变化
+  if (pelicanSquawk > 0.3) {
+    ctx.beginPath();
+    ctx.arc(eyeX, eyeY - R * 0.14, R * 0.04, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,200,100,0.6)';
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+// ========== 粒子效果 ==========
+function spawnParticles() {
+  // 轮胎溅沙
+  if (time % 3 === 0) {
+    const rearWheelContact = { x: bike.cx, y: groundY };
+    for (let i = 0; i < 2; i++) {
+      particles.push({
+        x: rearWheelContact.x + Math.random() * 10 - 5,
+        y: rearWheelContact.y,
+        vx: -1 - Math.random() * 2 + windX * 0.5,
+        vy: -1 - Math.random() * 3,
+        life: 30 + Math.random() * 20,
+        maxLife: 50,
+        size: 1.5 + Math.random() * 2,
+        color: `rgba(210,180,120,`
+      });
+    }
+  }
+  // 海风粒子
+  if (time % 5 === 0) {
+    particles.push({
+      x: windX > 0 ? -10 : W + 10,
+      y: groundY * 0.3 + Math.random() * groundY * 0.6,
+      vx: windX * 2 + (Math.random() - 0.5),
+      vy: (Math.random() - 0.5) * 0.5,
+      life: 80 + Math.random() * 40,
+      maxLife: 120,
+      size: 1 + Math.random(),
+      color: `rgba(255,255,255,`
+    });
+  }
+}
+
+function updateAndDrawParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.05; // 重力
+    p.life--;
+    if (p.life <= 0) {
+      particles.splice(i, 1);
+      continue;
+    }
+    const alpha = (p.life / p.maxLife) * 0.6;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, Math.max(0.5, p.size), 0, Math.PI * 2);
+    ctx.fillStyle = p.color + alpha.toFixed(2) + ')';
+    ctx.fill();
+  }
+}
+
+// 光晕叠加
+function drawAtmosphere() {
+  // 暖色光晕
+  const g = ctx.createRadialGradient(W * 0.78, groundY * 0.4, 0, W * 0.78, groundY * 0.4, W * 0.5);
+  g.addColorStop(0, 'rgba(255,200,80,0.08)');
+  g.addColorStop(0.5, 'rgba(255,180,60,0.03)');
+  g.addColorStop(1, 'rgba(255,160,40,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  // 底部暗角
+  const vg = ctx.createRadialGradient(W * 0.5, H * 0.5, W * 0.3, W * 0.5, H * 0.5, W * 0.9);
+  vg.addColorStop(0, 'rgba(0,0,0,0)');
+  vg.addColorStop(1, 'rgba(0,0,0,0.15)');
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, W, H);
+}
+
+// ========== 主循环 ==========
+function animate() {
+  time++;
+  if (pelicanSquawk > 0) pelicanSquawk -= 0.015;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // 更新自行车参数
+  updateBike();
+
+  // 绘制场景
+  drawSky();
+  drawSun();
+  drawClouds();
+  drawSeagulls();
+  drawOcean();
+  drawBeach();
+  drawShells();
+
+  // 棕榈树
+  drawPalmTree(W * 0.08, groundY + 5, 0.9, -0.1);
+  drawPalmTree(W * 0.92, groundY + 8, 1.1, 0.15);
+  drawPalmTree(W * 0.75, groundY + 3, 0.7, -0.05);
+
+  // 自行车和鹈鹕
+  const bp = drawBikeFrame();
+  drawPelican(bp);
+
+  // 粒子
+  spawnParticles();
+  updateAndDrawParticles();
+
+  // 氛围叠加
+  drawAtmosphere();
+
+  requestAnimationFrame(animate);
+}
+
+animate();
+</script>
+</body>
+</html>
